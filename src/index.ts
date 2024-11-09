@@ -48,13 +48,19 @@ const getWeather = async (city: string = 'Prague'): Promise<string> => {
 };
 
 const getMainNews = async (): Promise<string> => {
-    const url = `https://newsapi.org/v2/top-headlines?country=cz&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/top-headlines?apiKey=${NEWS_API_KEY}`;
     try {
         const response = await axios.get(url);
         const articles = response.data.articles;
-        return articles.length > 0 ? `Главная новость дня: ${articles[0].title}` : "Не удалось получить новость дня.";
+
+        if (articles.length === 0) {
+            return "На данный момент нет новостей по всему миру.";
+        }
+
+        const topArticle = articles[0];
+        return `Главная мировая новость дня: ${topArticle.title}`;
     } catch (error) {
-        console.error(`Ошибка при запросе к NewsAPI: ${error}`);
+        console.error(`Ошибка при запросе к News API: ${error}`);
         return "Не удалось получить новость дня.";
     }
 };
