@@ -7,12 +7,15 @@ dotenv.config();
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN as string;
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY as string;
+const NEWS_API_KEY = process.env.NEWS_API_KEY as string;
+const EXCHANGE_API_KEY = process.env.EXCHANGE_API_KEY as string;
+const BITCOIN_RATE_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=czk';
 
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 const userChats: Record<number, number> = {};
 
 const getWeather = async (city: string = 'Prague'): Promise<string> => {
-    const url = `http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`;
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric&lang=ru`;
     try {
         const response = await axios.get(url);
         const data = response.data;
@@ -21,26 +24,65 @@ const getWeather = async (city: string = 'Prague'): Promise<string> => {
         const weatherDescription = data.weather[0].description;
 
         let clothingRecommendation: string;
-        if (temperature < 10) {
-            clothingRecommendation = "Теплая одежда, шапка и перчатки.";
-        } else if (temperature >= 10 && temperature < 20) {
-            clothingRecommendation = "Легкая куртка или свитер.";
+        if (temperature < -5) {
+            clothingRecommendation = "Верх: зимняя куртка, Низ: теплые штаны, Обувь: зимние ботинки.";
+        } else if (temperature >= -5 && temperature < 5) {
+            clothingRecommendation = "Верх: теплая куртка, Низ: джинсы, Обувь: утепленные ботинки.";
+        } else if (temperature >= 5 && temperature < 10) {
+            clothingRecommendation = "Верх: легкая куртка, Низ: джинсы, Обувь: осенние ботинки.";
+        } else if (temperature >= 10 && temperature < 15) {
+            clothingRecommendation = "Верх: толстовка, Низ: джинсы, Обувь: кроссовки.";
+        } else if (temperature >= 15 && temperature < 20) {
+            clothingRecommendation = "Верх: свитер, Низ: легкие брюки, Обувь: легкие кроссовки.";
+        } else if (temperature >= 20 && temperature < 25) {
+            clothingRecommendation = "Верх: футболка, Низ: легкие штаны, Обувь: легкие кроссовки или шлёпанцы.";
         } else {
-            clothingRecommendation = "Легкая одежда, шорты и футболка.";
+            clothingRecommendation = "Верх: майка, Низ: шорты, Обувь: легкие кроссовки или шлёпанцы.";
         }
 
-        return `Погода в ${city}:\nТемпература: ${temperature}°C\n${weatherDescription.charAt(0).toUpperCase() + weatherDescription.slice(1)}\nРекомендуемая одежда: ${clothingRecommendation}`;
+        return `Погода в ${city}:\nТемпература: ${temperature}°C\n${weatherDescription.charAt(0).toUpperCase() + weatherDescription.slice(1)}\nРекомендуемая одежда:\n${clothingRecommendation}`;
     } catch (error) {
         console.error(`Ошибка при запросе к OpenWeather: ${error}`);
         return "Не удалось получить данные о погоде.";
     }
 };
 
+const getMainNews = async (): Promise<string> => {
+    const url = `https://newsapi.org/v2/top-headlines?country=cz&apiKey=${NEWS_API_KEY}`;
+    try {
+        const response = await axios.get(url);
+        const articles = response.data.articles;
+        return articles.length > 0 ? `Главная новость дня: ${articles[0].title}` : "Не удалось получить новость дня.";
+    } catch (error) {
+        console.error(`Ошибка при запросе к NewsAPI: ${error}`);
+        return "Не удалось получить новость дня.";
+    }
+};
+
+const getExchangeRates = async (): Promise<string> => {
+    try {
+        const exchangeResponse = await axios.get(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/EUR`);
+        const czkRate = exchangeResponse.data.conversion_rates.CZK;
+
+        const bitcoinResponse = await axios.get(BITCOIN_RATE_URL);
+        const bitcoinCZK = bitcoinResponse.data.bitcoin.czk;
+
+        return `Курс евро к чешской кроне: ${czkRate} CZK\nКурс биткоина: ${bitcoinCZK} CZK`;
+    } catch (error) {
+        console.error(`Ошибка при запросе курса: ${error}`);
+        return "Не удалось получить курсы валют.";
+    }
+};
+
 const sendWeatherUpdate = async (chatId: number): Promise<void> => {
-    const message = await getWeather();
+    const weather = await getWeather();
+    const news = await getMainNews();
+    const exchangeRates = await getExchangeRates();
+
+    const message = `${weather}\n\n${news}\n\n${exchangeRates}`;
     try {
         await bot.sendMessage(chatId, message);
-        console.info(`Weather message sent to user with chat_id: ${chatId}.`);
+        console.info(`Weather, news, and exchange rate message sent to user with chat_id: ${chatId}.`);
     } catch (error) {
         console.error(`Error sending message: ${error}`);
     }
@@ -53,7 +95,7 @@ bot.onText(/\/start/, async (msg) => {
 
     console.info(`User ${msg.from?.first_name} started the bot.`);
 
-    await bot.sendMessage(chatId, `Привет, ${msg.from?.first_name}! Я твой бот для прогноза погоды. Ты можешь получать ежедневные уведомления о погоде.`);
+    await bot.sendMessage(chatId, `Привет, ${msg.from?.first_name}! Я твой бот для прогноза погоды в Праге. Я буду присылать новую информацию каждое утро.`);
     await sendWeatherUpdate(chatId);
 });
 
@@ -69,4 +111,5 @@ const dailyWeatherUpdate = async (): Promise<void> => {
 };
 
 // Schedule daily updates at 8:00 AM
-schedule.scheduleJob('0 8 * * *', dailyWeatherUpdate);
+const pragueTimeZone = 'Europe/Prague';
+schedule.scheduleJob('0 8 * * *', pragueTimeZone, dailyWeatherUpdate);
