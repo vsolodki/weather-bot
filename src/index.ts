@@ -48,13 +48,13 @@ const getWeather = async (city: string = 'Prague'): Promise<string> => {
 };
 
 const getMainNews = async (): Promise<string> => {
-    const url = `https://newsapi.org/v2/top-headlines?apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/top-headlines?apiKey=${NEWS_API_KEY}&category=general&language=ru`;
     try {
         const response = await axios.get(url);
         const articles = response.data.articles;
 
         if (articles.length === 0) {
-            return "На данный момент нет новостей по всему миру.";
+            return "На данный момент нет мировых новостей.";
         }
 
         const topArticle = articles[0];
