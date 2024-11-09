@@ -48,7 +48,7 @@ const getWeather = async (city: string = 'Prague'): Promise<string> => {
 };
 
 const getMainNews = async (): Promise<string> => {
-    const url = `https://newsapi.org/v2/top-headlines?apiKey=${NEWS_API_KEY}&category=general&language=ru`;
+    const url = `https://newsapi.org/v2/top-headlines?apiKey=${NEWS_API_KEY}&category=general`;
     try {
         const response = await axios.get(url);
         const articles = response.data.articles;
