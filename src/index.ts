@@ -117,5 +117,4 @@ const dailyWeatherUpdate = async (): Promise<void> => {
 };
 
 // Schedule daily updates at 8:00 AM
-const pragueTimeZone = 'Europe/Prague';
-schedule.scheduleJob('0 8 * * *', pragueTimeZone, dailyWeatherUpdate);
+schedule.scheduleJob('0 8 * * *', dailyWeatherUpdate);
